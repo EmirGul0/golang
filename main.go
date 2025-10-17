@@ -1,39 +1,54 @@
 package main
 
 import (
-    "fmt"
-    "log"
-    "net/http"
-    "os"
+	"encoding/json"
+	"log"
+	"net/http"
+	"os"
+	"time"
 )
 
-// Ana sunucu fonksiyonu. Tüm gelen isteklere bu fonksiyon yanıt verir.
-func handler(w http.ResponseWriter, r *http.Request) {
-    // Tarayıcıya veya API isteğine gönderilecek yanıt.
-    // Erişim yolu (r.URL.Path) genellikle "/" olacaktır.
-    fmt.Fprintf(w, "Golang Web Servisimden Merhaba! Erişim Yolu: %s\n", r.URL.Path)
+// TimeResponse API'den dönecek JSON yapısını tanımlar
+type TimeResponse struct {
+	CurrentTime string `json:"currentTime"`
+	Timestamp   int64  `json:"timestamp"`
+}
+
+// timeHandler, saat verisini JSON olarak döner
+func timeHandler(w http.ResponseWriter, r *http.Request) {
+	// CORS başlıkları ekle (Frontend'in farklı bir adresten erişmesi için)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+
+	now := time.Now()
+
+	response := TimeResponse{
+		CurrentTime: now.Format("15:04:05"), // Saat:Dakika:Saniye formatı
+		Timestamp:   now.Unix(),             // Unix zaman damgası (JS için kolay)
+	}
+
+	json.NewEncoder(w).Encode(response)
+}
+
+// Varsayılan handler (hala "Merhaba" mesajı verebilir)
+func rootHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain")
+	fmt.Fprintf(w, "Golang Saat API'si Yayında. Veri almak için /api/time adresini kullanın.")
 }
 
 func main() {
-    // 1. Gelen tüm isteklere (/) handler fonksiyonunu ata
-    http.HandleFunc("/", handler)
+	// Endpoint atamaları
+	http.HandleFunc("/", rootHandler)
+	http.HandleFunc("/api/time", timeHandler)
 
-    // 2. Sunucunun dinleyeceği portu belirle
-    // Cloud/Render gibi platformlar portu bir Ortam Değişkeni (PORT) olarak ayarlar.
-    port := os.Getenv("PORT")
-    if port == "" {
-        // Eğer PORT ortam değişkeni yoksa (yerelde test ederken) varsayılan olarak 8080 kullan
-        port = "8080" 
-    }
+	// Port ayarı (Render'dan gelen PORT değişkenini kullanır)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-    // 3. Sunucuyu başlat
-    log.Printf("Sunucu %s portunda başlıyor...\n", port)
-    
-    // http.ListenAndServe ile sunucuyu dinlemeye başla
-    err := http.ListenAndServe(":"+port, nil)
-    
-    // Eğer bir hata olursa (örneğin port meşgulse) programı durdur
-    if err != nil {
-        log.Fatal("Sunucuyu başlatırken hata oluştu: ", err)
-    }
+	log.Printf("Sunucu %s portunda başlıyor...\n", port)
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		log.Fatal(err)
+	}
 }
