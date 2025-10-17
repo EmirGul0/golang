@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"fmt"
 )
 
 // TimeResponse API'den dönecek JSON yapısını tanımlar
